@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Your Notes</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <!-- TOAST UI Editor CSS -->
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
+  <style>
+    .note-row.selected {
+      background-color: #e9ecef;
+    }
+    .pointer {
+      cursor: pointer;
+    }
+  </style>
+  <!-- TOAST UI Editor JS -->
+  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script>
+    let notes = [];
+    let selectedNoteId = null;
+    let editing = false;
+    let toastuiEditInstance = null;
+    let toastuiAddInstance = null;
+
+    function setNotes(data) {
+      notes = data;
+    }
+
+    function selectNote(id) {
+      selectedNoteId = id;
+      editing = false;
+      renderPane();
+      highlightRow();
+    }
+
+    function highlightRow() {
+      document.querySelectorAll('.note-row').forEach(row => {
+        row.classList.remove('selected');
+      });
+      const row = document.getElementById('note-row-' + selectedNoteId);
+      if (row) row.classList.add('selected');
+    }
+
+    function showEditPane() {
+      editing = true;
+      renderPane();
+    }
+
+    function cancelEditPane() {
+      editing = false;
+      renderPane();
+    }
+
+    function renderPane() {
+      const pane = document.getElementById('view-pane');
+      const note = notes.find(n => n.ID == selectedNoteId);
+      if (!note) {
+        pane.innerHTML = '<div class="text-muted">Select a note to view</div>';
+        return;
+      }
+      if (!editing) {
+        pane.innerHTML = `
+          <h4>${escapeHtml(note.Title)}</h4>
+          <div class="mb-2 text-muted" style="font-size:0.9em;">
+            Created: ${escapeHtml(note.CreatedAt)}<br>
+            Updated: ${escapeHtml(note.UpdatedAt)}
+          </div>
+          <div class="mb-3" id="note-content-preview"></div>
+          <button class="btn btn-secondary btn-sm me-2" onclick="showEditPane()">Edit</button>
+          <button class="btn btn-info btn-sm me-2" onclick="showShareModal(${note.ID})">Share</button>
+          <form method="post" action="/notes/${note.ID}/delete" style="display:inline;">
+            <button class="btn btn-danger btn-sm" onclick="return confirm('Delete this note?')">Delete</button>
+          </form>
+        `;
+        setTimeout(() => {
+          // Render markdown using TOAST UI Viewer
+          if (window.toastuiViewInstance) {
+            window.toastuiViewInstance.destroy();
+          }
+          window.toastuiViewInstance = new toastui.Editor.factory({
+            el: document.getElementById('note-content-preview'),
+            viewer: true,
+            initialValue: note.Content || ""
+          });
+        }, 0);
+      } else {
+        pane.innerHTML = `
+          <form id="edit-note-form" method="post" action="/notes/${note.ID}/edit">
+            <div class="mb-2">
+              <label for="edit-title" class="form-label">Title</label>
+              <input id="edit-title" name="title" class="form-control" value="${escapeHtml(note.Title)}" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Content</label>
+              <div id="edit-content-editor"></div>
+              <textarea id="edit-content" name="content" style="display:none;" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm me-2" onclick="return submitEditForm();">Save</button>
+            <button type="button" class="btn btn-link btn-sm" onclick="cancelEditPane()">Cancel</button>
+          </form>
+        `;
+        setTimeout(() => {
+          if (toastuiEditInstance) toastuiEditInstance.destroy();
+          toastuiEditInstance = new toastui.Editor({
+            el: document.querySelector('#edit-content-editor'),
+            height: '300px',
+            initialEditType: 'markdown',
+            previewStyle: 'vertical',
+            initialValue: note.Content || "",
+          });
+          // Attach submit handler to ensure content is copied before submit
+          const form = document.getElementById('edit-note-form');
+          if (form) {
+            form.onsubmit = function() {
+              if (toastuiEditInstance) {
+                document.getElementById('edit-content').value = toastuiEditInstance.getMarkdown();
+              }
+              editing = false;
+              return true;
+            };
+          }
+        }, 0);
+      }
+    }
+
+    function submitEditForm() {
+      if (toastuiEditInstance) {
+        document.getElementById('edit-content').value = toastuiEditInstance.getMarkdown();
+      }
+      editing = false;
+      return true;
+    }
+
+    function escapeHtml(text) {
+      return (text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function showAddForm() {
+      document.getElementById('add-note-form').style.display = 'block';
+      document.getElementById('add-note-btn').style.display = 'none';
+      setTimeout(() => {
+        document.getElementById('add-title').focus();
+        if (toastuiAddInstance) toastuiAddInstance.destroy();
+        toastuiAddInstance = new toastui.Editor({
+          el: document.querySelector('#add-content-editor'),
+          height: '300px',
+          initialEditType: 'markdown',
+          previewStyle: 'vertical',
+          initialValue: "",
+        });
+      }, 0);
+    }
+    function hideAddForm() {
+      document.getElementById('add-note-form').style.display = 'none';
+      document.getElementById('add-note-btn').style.display = 'inline-block';
+      if (toastuiAddInstance) toastuiAddInstance.destroy();
+    }
+
+    function submitAddForm() {
+      if (toastuiAddInstance) {
+        document.getElementById('add-content').value = toastuiAddInstance.getMarkdown();
+      }
+      return true;
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+      // Set notes from template
+      setNotes([
+        {{- range $i, $n := .notes }}
+        {{- if $i}},{{end}}
+        {
+          ID: {{.ID}},
+          Title: `{{js .Title}}`,
+          Content: `{{js .Content}}`,
+          CreatedAt: `{{.CreatedAt.Format "2006-01-02 15:04"}}`,
+          UpdatedAt: `{{.UpdatedAt.Format "2006-01-02 15:04"}}`
+        }
+        {{- end }}
+      ]);
+      if (notes.length > 0) {
+        selectNote(notes[0].ID);
+      } else {
+        renderPane();
+      }
+    });
+  </script>
+</head>
+<body class="container">
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">NotesApp</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="/notes">My Notes</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <!-- End Navigation Bar -->
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="m-0">Your Notes</h2>
+    <button id="add-note-btn" class="btn btn-primary ms-3" style="white-space:nowrap;" onclick="showAddForm()">New Note</button>
+  </div>
+  <form id="add-note-form" method="post" style="display:none;" onsubmit="return submitAddForm();">
+    <div class="mb-3">
+      <label for="add-title" class="form-label">Title</label>
+      <input id="add-title" name="title" class="form-control mb-2" placeholder="Title" required>
+      <label class="form-label">Content</label>
+      <div id="add-content-editor"></div>
+      <textarea id="add-content" name="content" class="form-control" style="display:none;" required></textarea>
+    </div>
+    <button class="btn btn-success">Save</button>
+    <button type="button" class="btn btn-link" onclick="hideAddForm()">Cancel</button>
+  </form>
+  <div class="d-flex align-items-start" style="min-height: 60vh;">
+    <!-- Left: Notes Table -->
+    <div class="flex-shrink-0" style="width: 420px;">
+      <table class="table table-striped mt-3 w-auto">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Title</th>
+            <th>Preview</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ $idx := 0 }}
+          {{range .notes}}
+            {{ $idx = add $idx 1 }}
+            <tr id="note-row-{{.ID}}" class="note-row pointer" onclick="selectNote({{.ID}})">
+              <td>{{ $idx }}</td>
+              <td><strong>{{.Title}}</strong></td>
+              <td>{{preview6 .Content}}</td>
+            </tr>
+          {{else}}
+            <tr><td colspan="3">No notes yet.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    <!-- Right: Viewing/Editing Pane -->
+    <div class="flex-grow-1 ms-4" id="view-pane" style="min-width:300px;">
+      <!-- Content rendered by JS -->
+    </div>
+    <!-- Share Note Modal -->
+    <div class="modal fade" id="shareNoteModal" tabindex="-1" aria-labelledby="shareNoteModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <form id="share-note-form" method="post" action="/notes/share">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="shareNoteModalLabel">Share Note via Email</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" name="note_id" id="share-note-id">
+              <div class="mb-3">
+                <label for="share-emails" class="form-label">Email Addresses</label>
+                <input type="text" class="form-control" id="share-emails" name="emails" placeholder="Enter comma-separated emails" required>
+                <div class="form-text">Separate multiple email addresses with commas.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Public Link</label>
+                <input type="text" class="form-control" id="share-note-link" readonly>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">Send Email</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Show share modal and fill in note id and public link
+    function showShareModal(noteId) {
+      const note = notes.find(n => n.ID == noteId);
+      if (!note) return;
+      document.getElementById('share-note-id').value = noteId;
+      document.getElementById('share-note-link').value = `${window.location.origin}/notes/public/${noteId}`;
+      document.getElementById('share-emails').value = '';
+      const modal = new bootstrap.Modal(document.getElementById('shareNoteModal'));
+      modal.show();
+    }
+  </script>
+</body>
+</html>
