@@ -5,6 +5,7 @@ import (
 	sessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -60,7 +61,14 @@ func register(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Email already registered")
 		return
 	}
-	// TODO: Send code via email
+	// In your existing registration handler, replace the TODO line with:
+	err := sendVerificationEmail(email, code)
+	if err != nil {
+		log.Printf("Failed to send verification email to %s: %v", email, err)
+		// You might want to handle this error appropriately
+		// For now, we'll continue with registration but log the error
+	}
+
 	c.Redirect(http.StatusSeeOther, "/verify?email="+email)
 }
 
@@ -145,6 +153,13 @@ func forgot(c *gin.Context) {
 	user.ResetToken = token
 	db.Save(&user)
 	// TODO: Send reset link via email: /reset?token=...
+	// In your existing forgot password handler, replace the TODO line with:
+	err := sendPasswordResetEmail(email, token)
+	if err != nil {
+		log.Printf("Failed to send password reset email to %s: %v", email, err)
+		// Handle the error appropriately - you might want to show a generic success message
+		// to prevent email enumeration attacks, even if the email fails to send
+	}
 	session := sessions.Default(c)
 	session.Set("success", "A reset link has be sent to your email")
 	session.Save()
