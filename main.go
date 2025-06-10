@@ -4,10 +4,12 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/mailgun/mailgun-go/v4"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"html/template"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -37,7 +39,20 @@ func preview6(s string) string {
 	return s
 }
 
+var mg mailgun.Mailgun
+
 func main() {
+	// Initialize Mailgun client
+	apiKey := os.Getenv("MAILGUN_API_KEY")
+	domain := os.Getenv("MAILGUN_DOMAIN")
+
+	if apiKey == "" || domain == "" {
+		log.Fatal("MAILGUN_API_KEY and MAILGUN_DOMAIN must be set")
+	}
+
+	mg = mailgun.NewMailgun(domain, apiKey)
+
+	// ... rest of your existing application setup
 	var err error
 	db, err = gorm.Open(sqlite.Open("notes.db"), &gorm.Config{})
 	if err != nil {
