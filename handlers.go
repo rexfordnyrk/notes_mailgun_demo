@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
-	sessions "github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
+
+	sessions "github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func showHome(c *gin.Context) {
@@ -206,7 +208,7 @@ func showNotes(c *gin.Context) {
 	uid, _ := c.Get("userID")
 	var notes []Note
 	db.Where("user_id = ?", uid).Find(&notes)
-	c.HTML(http.StatusOK, "notes.html", gin.H{"notes": notes})
+	c.HTML(http.StatusOK, "notes.html", gin.H{"notes": notes, "userID": uid})
 }
 
 // createNote adds a new note for the authenticated user
@@ -303,4 +305,100 @@ func showPublicNote(c *gin.Context) {
 		"created": note.CreatedAt,
 		"updated": note.UpdatedAt,
 	})
+}
+
+// adminMiddleware ensures the user is logged in and is an admin (user ID 1)
+func adminMiddleware(c *gin.Context) {
+	userID, loggedIn := getSessionUserID(c)
+	if !loggedIn || userID != 1 {
+		c.Redirect(http.StatusSeeOther, "/")
+		return
+	}
+	c.Next()
+}
+
+// showBulkNotify renders the bulk notification page
+func showBulkNotify(c *gin.Context) {
+	// Get list of available templates
+	templates, err := getAvailableTemplates()
+	if err != nil {
+		c.HTML(http.StatusInternalServerError, "bulk_notify.html", gin.H{
+			"error": "Failed to load email templates",
+		})
+		return
+	}
+
+	c.HTML(http.StatusOK, "bulk_notify.html", gin.H{
+		"templates": templates,
+	})
+}
+
+// sendBulkNotification handles the bulk notification form submission
+func sendBulkNotification(c *gin.Context) {
+	subject := c.PostForm("subject")
+	templateName := c.PostForm("template")
+	recipientType := c.PostForm("recipient_type")
+
+	var recipients []string
+	var err error
+
+	if recipientType == "all" {
+		// Get all user emails from database
+		var users []User
+		if err := db.Find(&users).Error; err != nil {
+			c.HTML(http.StatusInternalServerError, "bulk_notify.html", gin.H{
+				"error": "Failed to fetch user emails",
+			})
+			return
+		}
+		for _, user := range users {
+			recipients = append(recipients, user.Email)
+		}
+	} else {
+		// Get emails from form field
+		emails := c.PostForm("specific_emails")
+		recipients = strings.Split(emails, ",")
+		for i, email := range recipients {
+			recipients[i] = strings.TrimSpace(email)
+		}
+	}
+
+	if len(recipients) == 0 {
+		c.HTML(http.StatusBadRequest, "bulk_notify.html", gin.H{
+			"error": "No recipients specified",
+		})
+		return
+	}
+
+	// TODO: Send bulk email
+	err = sendBulkEmail(recipients, subject, templateName)
+	if err != nil {
+		// Log the error and show a user-friendly message
+		log.Printf("Failed to send bulk email: %v", err)
+
+		c.HTML(http.StatusInternalServerError, "bulk_notify.html", gin.H{
+			"error": fmt.Sprintf("Failed to send notifications: %v", err),
+		})
+		return
+	}
+
+	c.HTML(http.StatusOK, "bulk_notify.html", gin.H{
+		"success": fmt.Sprintf("Successfully sent notifications to %d recipients", len(recipients)),
+	})
+}
+
+// getAvailableTemplates returns a list of available email templates
+func getAvailableTemplates() ([]string, error) {
+	files, err := os.ReadDir("templates")
+	if err != nil {
+		return nil, err
+	}
+
+	var templates []string
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".html") {
+			templates = append(templates, file.Name())
+		}
+	}
+	return templates, nil
 }

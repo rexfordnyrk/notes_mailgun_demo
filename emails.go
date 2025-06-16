@@ -100,3 +100,45 @@ func sendPasswordResetEmail(toEmail, resetToken string) error {
 
 	return nil
 }
+
+// sendBulkEmail sends an email to multiple recipients using BCC
+func sendBulkEmail(recipients []string, subject, templateName string) error {
+	// Parse the template
+	tmpl, err := template.ParseFiles("templates/" + templateName)
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	// Execute template with empty data (or add any common data needed)
+	var htmlBody bytes.Buffer
+	if err := tmpl.Execute(&htmlBody, nil); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	// Create the email message
+	message := mg.NewMessage(
+		"noreply@"+mg.Domain(), // From address
+		subject,                // Subject
+		htmlBody.String(),      // HTML body
+		recipients[0],          // First recipient (required by Mailgun)
+	)
+
+	// Set HTML body
+	message.SetHTML(htmlBody.String())
+
+	// Add remaining recipients as BCC
+	for i := 1; i < len(recipients); i++ {
+		message.AddBCC(recipients[i])
+	}
+
+	// Send the email with timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	_, _, err = mg.Send(ctx, message)
+	if err != nil {
+		return fmt.Errorf("failed to send bulk email: %w", err)
+	}
+
+	return nil
+}

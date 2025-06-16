@@ -1,16 +1,17 @@
 package main
 
 import (
+	"html/template"
+	"log"
+	"os"
+	"strings"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/mailgun/mailgun-go/v4"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"html/template"
-	"log"
-	"os"
-	"strings"
 )
 
 type User struct {
@@ -88,6 +89,10 @@ func main() {
 	r.POST("/notes/:id/delete", authMiddleware, deleteNote)
 	r.POST("/notes/share", authMiddleware, shareNoteHandler)
 	r.GET("/notes/public/:id", showPublicNote)
+
+	// Add bulk notification routes (admin only)
+	r.GET("/admin/bulk-notify", adminMiddleware, showBulkNotify)
+	r.POST("/admin/bulk-notify", adminMiddleware, sendBulkNotification)
 
 	r.Run(":8080")
 }
