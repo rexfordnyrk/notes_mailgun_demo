@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheduled Maintenance Notice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 5px 5px;
+        }
+        .maintenance-window {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .maintenance-time {
+            font-size: 18px;
+            font-weight: bold;
+            color: #856404;
+        }
+        .impact-box {
+            background-color: #e8f5e8;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>🔧 Scheduled Maintenance Notice</h1>
+</div>
+<div class="content">
+    <h2>Important Service Update</h2>
+    <p>Dear Notes App User,</p>
+
+    <p>We will be performing scheduled maintenance on our servers to improve your experience and implement security updates.</p>
+
+    <div class="maintenance-window">
+        <h3>Maintenance Window</h3>
+        <div class="maintenance-time">
+            {{.MaintenanceDate}} from {{.StartTime}} to {{.EndTime}}
+            <br><small>({{.Timezone}})</small>
+        </div>
+    </div>
+
+    <div class="impact-box">
+        <h3>What to Expect:</h3>
+        <ul>
+            <li>The Notes App will be temporarily unavailable during this window</li>
+            <li>Any unsaved work should be saved before the maintenance begins</li>
+            <li>Service will be restored automatically once maintenance is complete</li>
+            <li>All your notes and data will remain safe and secure</li>
+        </ul>
+    </div>
+
+    <h3>Preparation Steps:</h3>
+    <p>To ensure a smooth experience:</p>
+    <ul>
+        <li>Save any work in progress before the maintenance window</li>
+        <li>Plan accordingly if you need access to your notes during this time</li>
+        <li>Consider downloading important notes for offline access</li>
+    </ul>
+
+    <p>We apologize for any inconvenience this may cause. This maintenance is essential for providing you with better performance and enhanced security.</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{.StatusPageURL}}" class="btn">Check Status Page</a>
+        <a href="{{.SupportURL}}" class="btn">Contact Support</a>
+    </div>
+
+    <p>Thank you for your patience and continued trust in Notes App.</p>
+
+    <p>Best regards,<br>
+        <strong>The Notes App Team</strong></p>
+</div>
+<div class="footer">
+    <p>This is an automated message from Notes App. Please do not reply to this email.</p>
+    <p>If you have questions, visit our <a href="{{.SupportURL}}">support center</a></p>
+</div>
+</body>
+</html>

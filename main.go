@@ -74,5 +74,9 @@ func main() {
 	r.POST("/notes/share", authMiddleware, shareNoteHandler)
 	r.GET("/notes/public/:id", showPublicNote)
 
+	// Add bulk notification routes (admin only)
+	r.GET("/admin/bulk-notify", adminMiddleware, showBulkNotify)
+	r.POST("/admin/bulk-notify", adminMiddleware, sendBulkNotification)
+
 	r.Run(":8080")
 }
