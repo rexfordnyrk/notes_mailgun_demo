@@ -20,7 +20,9 @@ A simple Go web application demonstrating user authentication, session managemen
 
 1. Clone the repository:
 ```bash
-   git clone git@github.com:rexfordnyrk/notes_mailgun_demo.git cd notes_mailgun_demo
+   git clone git@github.com:rexfordnyrk/notes_mailgun_demo.
+   
+   cd notes_mailgun_demo
 ```
 2. Install dependencies:
 ```bash
